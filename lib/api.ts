@@ -7,7 +7,7 @@ export const DASHBOARD_API = process.env.NEXT_PUBLIC_DASHBOARD_API || `${browser
 export const MODEL_API = process.env.NEXT_PUBLIC_MODEL_API || `${browserProtocol}//${browserHost}:8001`
 export const AGENT_API = process.env.NEXT_PUBLIC_AGENT_API || `${browserProtocol}//${browserHost}:8003`
 
-export type Kpis = { reference_date: string; total_shops: number; total_products: number; shops_at_stockout_risk: number; shops_at_overstock_risk: number; total_recommendations: number; high_priority_recommendations: number; total_units_to_dispatch: number; most_critical_product: string; most_critical_governorate: string }
+export type Kpis = { reference_date: string; total_shops: number; total_products: number; shops_at_stockout_risk: number; shops_at_overstock_risk: number; total_recommendations: number; high_priority_recommendations: number; total_units_to_dispatch: number; most_critical_product: string; most_critical_governorate: string; fraicheur_pct?: number; date_batch?: string }
 export type Prediction = { date: string; shop_id: string; product_id: string; predicted_demand_7d: number; proba_stockout_7d: number; risk_stockout_7d_predicted: number; proba_overstock: number; risk_overstock_predicted: number; stock_on_hand: number; order_up_to_level: number }
 export type Recommendation = { recommendation_date: string; shop_id: string; product_id: string; recommendation_type: string; priority: 'High'|'Medium'|'Low'; suggested_qty: number; business_reason: string; estimated_7d_demand: number; current_stock: number; stock_in_transit: number; stockout_risk_score: number }
 export type TopRisk = { shop_id: string; product_id: string; proba_stockout_7d: number; predicted_demand_7d: number; stock_on_hand: number; governorate: string; region: string; shop_type: string }
@@ -24,9 +24,12 @@ async function request<T>(base: string, path: string, init?: RequestInit): Promi
   return response.json()
 }
 
+export type Freshness = { derniere_vente?: string; fraicheur_pct?: number; date_batch?: string }
+
 export const api = {
-  kpis: () => request<Kpis>(DASHBOARD_API, '/kpis'),
-  topRisks: (limit = 20) => request<TopRisk[]>(DASHBOARD_API, `/top_risks?limit=${limit}`),
+  kpis: () => request<Kpis>(DASHBOARD_API, '/live/kpis'),
+  freshness: () => request<Freshness>(DASHBOARD_API, '/live/freshness'),
+  topRisks: (limit = 20) => request<TopRisk[]>(DASHBOARD_API, `/live/top-risks?limit=${limit}`),
   recommendations: (priority = '', limit = 500) => request<Recommendation[]>(DASHBOARD_API, `/recommendations?${priority ? `priority=${priority}&` : ''}limit=${limit}`),
   shop: (id: string) => request<ShopDetail>(DASHBOARD_API, `/shop/${encodeURIComponent(id)}`),
   simulate: (body: Record<string, unknown>) => request<SimulationResult>(MODEL_API, '/predict', { method: 'POST', body: JSON.stringify(body) }),

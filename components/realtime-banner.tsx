@@ -29,10 +29,20 @@ function relativeDate(value?: string) {
   return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 }
 
-function unwrap<T>(value: T | { data?: T; result?: T; kpis?: T; predictions?: T }) {
-  if (value && typeof value === 'object' && 'data' in value && value.data !== undefined) return value.data as T
-  if (value && typeof value === 'object' && 'result' in value && value.result !== undefined) return value.result as T
+function unwrap<T>(value: T | { data?: T; result?: T; items?: T; models?: T; terms?: T; kpis?: T; predictions?: T }) {
+  if (value && typeof value === 'object') {
+    const payload = value as Record<string, unknown>
+    for (const key of ['data', 'result', 'items', 'models', 'terms']) {
+      if (payload[key] !== undefined) return payload[key] as T
+    }
+  }
   return value as T
+}
+
+function unwrapRealtime<T>(value: unknown, key: 'kpis' | 'predictions') {
+  if (!value || typeof value !== 'object') return value as T
+  const payload = value as Record<string, unknown>
+  return (payload[key] ?? (payload.data && typeof payload.data === 'object' ? (payload.data as Record<string, unknown>)[key] : undefined) ?? payload.data ?? payload.result ?? value) as T
 }
 
 export function RealtimeBanner() {
@@ -46,7 +56,7 @@ export function RealtimeBanner() {
         fetch(`${DASHBOARD_API}/realtime/kpis?window_minutes=60`).then((response) => response.json()),
         fetch(`${DASHBOARD_API}/realtime/predictions?limit=8`).then((response) => response.json()),
       ])
-      setData({ ...unwrap(statusResponse), kpis: unwrap(kpiResponse), predictions: unwrap(predictionResponse) as RealtimeData['predictions'] })
+      setData({ ...unwrap(statusResponse), kpis: unwrapRealtime<RealtimeData['kpis']>(kpiResponse, 'kpis'), predictions: unwrapRealtime<RealtimeData['predictions']>(predictionResponse, 'predictions') })
     } catch { setError(true) }
   }
   useEffect(() => { load() }, [])

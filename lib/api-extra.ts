@@ -12,12 +12,23 @@ async function get<T>(base: string, path: string): Promise<T> {
   return response.json()
 }
 
+function collection<T>(value: unknown, keys: string[]): T[] {
+  if (Array.isArray(value)) return value as T[]
+  if (!value || typeof value !== 'object') return []
+  const payload = value as Record<string, unknown>
+  for (const key of keys) {
+    const nested = payload[key]
+    if (Array.isArray(nested)) return nested as T[]
+  }
+  return collection<T>(payload.data ?? payload.result, keys)
+}
+
 export const extraApi = {
   realtime: () => get<RealtimeStatus>(DASHBOARD_API, '/realtime/status'),
-  models: () => get<ModelSummary[]>(MODEL_API, '/models'),
-  transfers: (limit = 100) => get<Transfer[]>(DASHBOARD_API, `/transfers?limit=${limit}`),
-  kpiExplanations: () => get<KpiExplanation[]>(DASHBOARD_API, '/kpis/explanations'),
-  glossary: () => get<GlossaryTerm[]>(DASHBOARD_API, '/glossary'),
+  models: async () => collection<ModelSummary>(await get<unknown>(MODEL_API, '/models'), ['models', 'items']),
+  transfers: async (limit = 100) => collection<Transfer>(await get<unknown>(DASHBOARD_API, `/transfers?limit=${limit}`), ['transfers', 'items']),
+  kpiExplanations: async () => collection<KpiExplanation>(await get<unknown>(DASHBOARD_API, '/kpis/explanations'), ['explanations', 'items']),
+  glossary: async () => collection<GlossaryTerm>(await get<unknown>(DASHBOARD_API, '/glossary'), ['glossary', 'terms', 'items']),
 }
 
 export function apiDate(value?: string) { return value ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—' }
